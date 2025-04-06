@@ -58,13 +58,21 @@ pub fn main() !void {
     }
 }
 
+pub fn responseWithBody(conn: net.Server.Connection, body: []const u8) !void {
+    var header_buf: [128]u8 = undefined;
+    const header = try std.fmt.bufPrint(
+        &header_buf,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n",
+        .{body.len},
+    );
+
+    try conn.stream.writeAll(header);
+    try conn.stream.writeAll(body);
+}
 pub fn success(conn: net.Server.Connection) !void {
     _ = try conn.stream.write("HTTP/1.1 200 OK\r\n\r\n");
 }
 
-pub fn responseWithBody(conn: net.Server.Connection, body: [] const u8) !void {
-    _ = try conn.stream.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 3\r\n\r\n{s}", .{body});
-}
 
 pub fn not_found(conn: net.Server.Connection) !void {
     _ = try conn.stream.write("HTTP/1.1 404 Not Found\r\n\r\n");
