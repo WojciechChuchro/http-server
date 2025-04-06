@@ -46,7 +46,7 @@ pub fn main() !void {
     try stdout.print("part1: {s}\n", .{part3});
     
     if (std.mem.eql(u8, part1, "")) {
-        if(std.mem.eql(u8, part2, "echo")) {
+        if(part2.len > 0 and std.mem.eql(u8, part2, "echo")) {
             if(part3.len > 0) {
                 
                 try stdout.print("hi \n", .{});
