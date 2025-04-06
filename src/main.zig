@@ -48,7 +48,7 @@ pub fn main() !void {
     if (std.mem.eql(u8, part1, "/")) {
         if(std.mem.eql(u8, part2, "echo")) {
             if(part2.len > 0) {
-                responseWithBody(conn, part2);
+                try responseWithBody(conn, part2);
             }
         } else {
             try success(conn);
