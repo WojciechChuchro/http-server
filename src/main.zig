@@ -47,8 +47,8 @@ pub fn main() !void {
     
     if (std.mem.eql(u8, part1, "/")) {
         if(std.mem.eql(u8, part2, "echo")) {
-            if(std.mem.eql(u8, part2, "abc")) {
-                
+            if(part2.len > 0) {
+                responseWithBody(conn, part2);
             }
         } else {
             try success(conn);
@@ -62,8 +62,8 @@ pub fn success(conn: net.Server.Connection) !void {
     _ = try conn.stream.write("HTTP/1.1 200 OK\r\n\r\n");
 }
 
-pub fn responseWithBody(conn: net.Server.Connection) !void {
-    _ = try conn.stream.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 3\r\n\r\nabc");
+pub fn responseWithBody(conn: net.Server.Connection, body: [] const u8) !void {
+    _ = try conn.stream.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 3\r\n\r\n{s}", .{body});
 }
 
 pub fn not_found(conn: net.Server.Connection) !void {
