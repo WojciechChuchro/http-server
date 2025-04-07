@@ -51,49 +51,39 @@ pub fn main() !void {
     const part1 = url_parts.next();
     const part2 = url_parts.next();
     const part3 = url_parts.next();
-    // First, let's determine which route we're handling
-    const Route = enum {
-        Root, // "/"
-        Echo, // "/echo"
-        EchoParam, // "/echo/parameter"
-        NotFound, // Any other path
-    };
 
-    // Determine which route we're handling
-    const route = if (part1) |p1| {
-        if (std.mem.eql(u8, p1, "")) {
-            if (part2) |p2| {
-                if (std.mem.eql(u8, p2, "echo")) {
-                    if (part3 != null) {
-                        Route.EchoParam;
-                    } else {
-                        Route.Echo;
-                    }
-                } else {
-                    Route.NotFound;
-                }
-            } else {
-                Route.Root;
+    switch (part1) {
+        null => try not_found(conn),
+        else => |p1| {
+            try stdout.print("part1: {s}\n", .{p1});
+
+            if (!std.mem.eql(u8, p1, "")) {
+                // Any non-empty first part gets a success response
+                try success(conn);
+                return;
             }
-        } else {
-            Route.NotFound;
-        }
-    } else {
-        Route.NotFound;
-    };
 
-    // Now handle each route with a switch statement
-    switch (route) {
-        .Root => try success(conn),
-        .Echo => try not_found(conn), // You might want to handle this differently
-        .EchoParam => {
-            const p3 = part3.?; // We already checked that part3 is not null
-            try stdout.print("part3: {s}\n", .{p3});
-            const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ p3.len, p3 });
-            defer allocator.free(message);
-            _ = try conn.stream.write(message);
+            switch (part2) {
+                null => try success(conn), // Root path "/"
+                else => |p2| {
+                    try stdout.print("part2: {s}\n", .{p2});
+
+                    if (std.mem.eql(u8, p2, "echo")) {
+                        switch (part3) {
+                            null => try not_found(conn),
+                            else => |p3| {
+                                try stdout.print("part3: {s}\n", .{p3});
+                                const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ p3.len, p3 });
+                                defer allocator.free(message);
+                                _ = try conn.stream.write(message);
+                            },
+                        }
+                    } else {
+                        try not_found(conn);
+                    }
+                },
+            }
         },
-        .NotFound => try not_found(conn),
     }
 }
 
