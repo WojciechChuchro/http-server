@@ -61,8 +61,6 @@ pub fn main() !void {
                         defer allocator.free(message);
                         _ = try conn.stream.write(message);
                     }
-                } else {
-                    try success(conn);
                 }
             }
         }
