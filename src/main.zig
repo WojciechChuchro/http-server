@@ -65,7 +65,7 @@ pub fn main() !void {
                     }
                 }
 
-                try not_found(conn);
+                try success(conn);
                 try stdout.print("part2: {s}\n", .{p2});
                 return;
             }
