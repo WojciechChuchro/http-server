@@ -64,8 +64,8 @@ pub fn main() !void {
                         return;
                     }
                 }
-                _ = try conn.stream.write("HTTP/1.1 200 OK\r\n\r\n");
 
+                try not_found(conn);
                 try stdout.print("part2: {s}\n", .{p2});
             } else {
                 try not_found(conn);
