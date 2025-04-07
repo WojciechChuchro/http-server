@@ -57,17 +57,22 @@ pub fn main() !void {
             if (part2) |p2| {
                 if (std.mem.eql(u8, p2, "echo")) {
                     if (part3) |p3| {
+                        try stdout.print("part3: \n{s}\n", .{p3});
                         const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ p3.len, p3 });
                         defer allocator.free(message);
                         _ = try conn.stream.write(message);
                     }
                 }
+
+                try stdout.print("part2: \n{s}\n", .{p2});
             } else {
                 try not_found(conn);
             }
         } else {
             try not_found(conn);
         }
+
+        try stdout.print("part1: \n{s}\n", .{p1});
     } else {
         try not_found(conn);
     }
