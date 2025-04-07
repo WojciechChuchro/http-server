@@ -67,14 +67,18 @@ pub fn main() !void {
 
                 try not_found(conn);
                 try stdout.print("part2: {s}\n", .{p2});
-            } else {
-                try not_found(conn);
+                return;
             }
+
+            try not_found(conn);
+            return;
         } else {
             try not_found(conn);
         }
+        try not_found(conn);
 
         try stdout.print("part1: {s}\n", .{p1});
+        return;
     } else {
         try not_found(conn);
     }
