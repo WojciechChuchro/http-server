@@ -52,38 +52,48 @@ pub fn main() !void {
     const part2 = url_parts.next();
     const part3 = url_parts.next();
 
-    switch (part1) {
-        null => try not_found(conn),
-        else => |p1| {
-            try stdout.print("part1: {s}\n", .{p1});
+    // Handle routing with cleaner nested conditionals
+    if (part1) |p1| {
+        try stdout.print("part1: {s}\n", .{p1});
 
-            if (!std.mem.eql(u8, p1, "")) {
-                // Any non-empty first part gets a success response
+        // Check if we're at the root path
+        if (std.mem.eql(u8, p1, "")) {
+            // Root path handling
+            if (part2) |p2| {
+                try stdout.print("part2: {s}\n", .{p2});
+
+                // Check for "/echo" route
+                if (std.mem.eql(u8, p2, "echo")) {
+                    // Check for "/echo/{parameter}" route
+                    if (part3) |p3| {
+                        try stdout.print("part3: {s}\n", .{p3});
+                        const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ p3.len, p3 });
+                        defer allocator.free(message);
+                        _ = try conn.stream.write(message);
+                        return;
+                    } else {
+                        // Just "/echo" with no parameter
+                        try not_found(conn);
+                        return;
+                    }
+                } else {
+                    // Any other non-echo path after "/"
+                    try not_found(conn);
+                    return;
+                }
+            } else {
+                // Just the root path "/"
                 try success(conn);
                 return;
             }
-
-            switch (part2) {
-                null => try success(conn), // Root path "/"
-                else => |p2| {
-                    try stdout.print("part2: {s}\n", .{p2});
-
-                    if (std.mem.eql(u8, p2, "echo")) {
-                        switch (part3) {
-                            null => try not_found(conn),
-                            else => |p3| {
-                                try stdout.print("part3: {s}\n", .{p3});
-                                const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ p3.len, p3 });
-                                defer allocator.free(message);
-                                _ = try conn.stream.write(message);
-                            },
-                        }
-                    } else {
-                        try not_found(conn);
-                    }
-                },
-            }
-        },
+        } else {
+            // Non-empty first part (not actually the root)
+            try success(conn);
+            return;
+        }
+    } else {
+        // No path at all
+        try not_found(conn);
     }
 }
 
