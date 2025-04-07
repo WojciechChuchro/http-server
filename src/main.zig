@@ -35,7 +35,7 @@ pub fn main() !void {
 
     _ = try conn.stream.read(input);
 
-    var iter = std.mem.split(u8, input, " ");
+    var iter = std.mem.splitAny(u8, input, " ");
 
     _ = iter.next();
 
@@ -43,7 +43,7 @@ pub fn main() !void {
 
     const path = iter.next();
 
-    var pathIter = std.mem.split(u8, path.?, "/");
+    var pathIter = std.mem.splitAny(u8, path.?, "/");
 
     _ = pathIter.next();
 
