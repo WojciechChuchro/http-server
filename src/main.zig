@@ -62,7 +62,11 @@ pub fn main() !void {
                         _ = try conn.stream.write(message);
                     }
                 }
+            } else {
+                try not_found(conn);
             }
+        } else {
+            try not_found(conn);
         }
     } else {
         try not_found(conn);
