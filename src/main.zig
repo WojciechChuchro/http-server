@@ -70,13 +70,10 @@ pub fn main() !void {
                 return;
             }
 
-            try not_found(conn);
+            try success(conn);
             return;
-        } else {
-            try not_found(conn);
         }
         try not_found(conn);
-
         try stdout.print("part1: {s}\n", .{p1});
         return;
     } else {
