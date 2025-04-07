@@ -73,7 +73,7 @@ pub fn main() !void {
             try success(conn);
             return;
         }
-        try not_found(conn);
+        try success(conn);
         try stdout.print("part1: {s}\n", .{p1});
         return;
     } else {
