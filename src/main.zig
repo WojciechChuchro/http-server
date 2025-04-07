@@ -1,116 +1,63 @@
 const std = @import("std");
+
+// Uncomment this block to pass the first stage
+
 const net = std.net;
 
-fn sendNotFound(conn: net.Server.Connection) !void {
-    try conn.stream.writeAll("HTTP/1.1 404 Not Found\r\n\r\n", .{});
-}
-
 pub fn main() !void {
-    const port = 4221;
     const stdout = std.io.getStdOut().writer();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const alloc = std.heap.page_allocator;
 
-    const response = try allocator.alloc(u8, 1024);
-    defer allocator.free(response);
+    // You can use print statements as follows for debugging, they'll be visible when running tests.
 
-    //std.mem.copyBackwards(u8, response[0..str.len], str);
+    try stdout.print("Logs from your program will appear here!\n", .{});
 
-    try stdout.print("Server started at port {}\n", .{port});
+    // Uncomment this block to pass the first stage
 
-    const address = try net.Address.resolveIp("127.0.0.1", port);
+    const address = try net.Address.resolveIp("127.0.0.1", 4221);
+
     var listener = try address.listen(.{
         .reuse_address = true,
     });
+
     defer listener.deinit();
 
     const conn = try listener.accept();
+
     defer conn.stream.close();
 
-    const input = try allocator.alloc(u8, 1024);
-    defer allocator.free(input);
+    try stdout.print("client connected!", .{});
 
-    const bytes_read = try conn.stream.read(input);
-    try stdout.print("-----REQUEST-----: \n{s}\n", .{input[0..bytes_read]});
+    const input = try alloc.alloc(u8, 1024);
 
-    var lines = std.mem.splitSequence(u8, input, "\n");
+    defer alloc.free(input);
 
-    const start_line = lines.next().?;
-    var s = std.mem.splitSequence(u8, start_line, " ");
+    _ = try conn.stream.read(input);
 
-    const method = s.next().?;
-    const request_target = s.next().?;
-    const protocol = s.next().?;
-    _ = method;
-    _ = protocol;
+    var iter = std.mem.split(u8, input, " ");
 
-    try stdout.print("Path: \n{s}\n", .{request_target});
-    var url_parts = std.mem.splitAny(u8, request_target, "/");
-    const part1 = url_parts.next();
-    const part2 = url_parts.next();
-    const part3 = url_parts.next();
+    _ = iter.next();
 
-    // Handle routing with cleaner nested conditionals
-    if (part1) |p1| {
-        try stdout.print("part1: {s}\n", .{p1});
+    // const method = iter.next();
 
-        // Check if we're at the root path
-        if (std.mem.eql(u8, p1, "")) {
-            // Root path handling
-            if (part2) |p2| {
-                try stdout.print("part2: {s}\n", .{p2});
+    const path = iter.next();
 
-                // Check for "/echo" route
-                if (std.mem.eql(u8, p2, "echo")) {
-                    // Check for "/echo/{parameter}" route
-                    if (part3) |p3| {
-                        try stdout.print("part3: {s}\n", .{p3});
-                        const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ p3.len, p3 });
-                        defer allocator.free(message);
-                        _ = try conn.stream.write(message);
-                        return;
-                    } else {
-                        // Just "/echo" with no parameter
-                        try not_found(conn);
-                        return;
-                    }
-                } else {
-                    // Any other non-echo path after "/"
-                    try not_found(conn);
-                    return;
-                }
-            } else {
-                // Just the root path "/"
-                try success(conn);
-                return;
-            }
-        } else {
-            // Non-empty first part (not actually the root)
-            try success(conn);
-            return;
-        }
+    var pathIter = std.mem.split(u8, path.?, "/");
+
+    _ = pathIter.next();
+
+    const root = pathIter.next();
+
+    if (std.mem.eql(u8, path.?, "/")) {
+        _ = try conn.stream.writeAll("HTTP/1.1 200 OK\r\n\r\n");
+    } else if (std.mem.eql(u8, root.?, "echo")) {
+        const first = pathIter.next();
+
+        const res = try std.fmt.allocPrint(alloc, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {0d}\r\n\r\n{1s}", .{ first.?.len, first.? });
+
+        _ = try conn.stream.writeAll(res);
     } else {
-        // No path at all
-        try not_found(conn);
+        _ = try conn.stream.writeAll("HTTP/1.1 404 Not Found\r\n\r\n");
     }
-}
-
-pub fn responseWithBody(conn: net.Server.Connection, body: []const u8) !void {
-    var header_buf: [128]u8 = undefined;
-    const header = try std.fmt.bufPrint(
-        &header_buf,
-        .{body.len},
-    );
-
-    try conn.stream.writeAll(header);
-    try conn.stream.writeAll(body);
-}
-pub fn success(conn: net.Server.Connection) !void {
-    _ = try conn.stream.write("HTTP/1.1 200 OK\r\n\r\n");
-}
-
-pub fn not_found(conn: net.Server.Connection) !void {
-    _ = try conn.stream.write("HTTP/1.1 404 Not Found\r\n\r\n");
 }
