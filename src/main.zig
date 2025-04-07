@@ -53,8 +53,10 @@ pub fn main() !void {
     const part3 = url_parts.next();
 
     if (part1) |p1| {
+        try stdout.print("part1: {s}\n", .{p1});
         if (std.mem.eql(u8, p1, "")) {
             if (part2) |p2| {
+                try stdout.print("part2: {s}\n", .{p2});
                 if (std.mem.eql(u8, p2, "echo")) {
                     if (part3) |p3| {
                         try stdout.print("part3: {s}\n", .{p3});
@@ -66,7 +68,6 @@ pub fn main() !void {
                 }
 
                 try not_found(conn);
-                try stdout.print("part2: {s}\n", .{p2});
                 return;
             }
 
@@ -74,7 +75,6 @@ pub fn main() !void {
             return;
         }
         try success(conn);
-        try stdout.print("part1: {s}\n", .{p1});
         return;
     } else {
         try not_found(conn);
