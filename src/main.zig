@@ -61,6 +61,7 @@ pub fn main() !void {
                         const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ p3.len, p3 });
                         defer allocator.free(message);
                         _ = try conn.stream.write(message);
+                        return;
                     }
                 }
                 _ = try conn.stream.write("HTTP/1.1 200 OK\r\n\r\n");
