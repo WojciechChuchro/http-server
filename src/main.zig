@@ -48,22 +48,23 @@ pub fn main() !void {
 
     try stdout.print("Path: \n{s}\n", .{request_target});
     var url_parts = std.mem.splitAny(u8, request_target, "/");
-    const part1 = url_parts.next().?;
-    const part2 = url_parts.next().?;
-    const part3 = url_parts.next().?;
-    try stdout.print("part1: {s}\n", .{part1});
-    try stdout.print("part1: {s}\n", .{part2});
-    try stdout.print("part1: {s}\n", .{part3});
+    const part1 = url_parts.next();
+    const part2 = url_parts.next();
+    const part3 = url_parts.next();
 
-    if (std.mem.eql(u8, part1, "")) {
-        if (std.mem.eql(u8, part2, "echo")) {
-            if (part3.len > 0) {
-                const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ part3.len, part3 });
-                defer allocator.free(message);
-                _ = try conn.stream.write(message);
+    if (part1) |p1| {
+        if (std.mem.eql(u8, p1, "")) {
+            if (part2) |p2| {
+                if (std.mem.eql(u8, p2, "echo")) {
+                    if (part3) |p3| {
+                        const message = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {d}\r\n\r\n{s}", .{ p3.len, p3 });
+                        defer allocator.free(message);
+                        _ = try conn.stream.write(message);
+                    }
+                } else {
+                    try success(conn);
+                }
             }
-        } else {
-            try success(conn);
         }
     } else {
         try not_found(conn);
