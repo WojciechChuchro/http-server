@@ -154,8 +154,15 @@ fn handleConnection(conn: net.Server.Connection, log: ?std.fs.File.Writer, alloc
 
             ok_response(req.get_user_agent().?, conn.stream.writer()) catch return handleError(conn);
         } else if (std.mem.eql(u8, route_iter.peek().?, "files")) {
-            _ = route_iter.next();
-            file_return(conn, route_iter.next().?, alloc, directory_path.?) catch return handleError(conn);
+            if (std.mem.eql(u8, req.get_method(), "POST")) {
+                _ = route_iter.next();
+
+                file_create(conn, route_iter.next().?, alloc, directory_path.?, req.body) catch return handleError(conn);
+            } else {
+                _ = route_iter.next();
+
+                file_return(conn, route_iter.next().?, alloc, directory_path.?) catch return handleError(conn);
+            }
         } else {
             conn.stream.writeAll("HTTP/1.1 404 Not Found\r\n\r\n") catch return handleError(conn);
         }
@@ -169,6 +176,7 @@ fn handleConnection(conn: net.Server.Connection, log: ?std.fs.File.Writer, alloc
 fn handleError(connection: net.Server.Connection) void {
     connection.stream.writeAll("HTTP/1.1 500 Internal Server Error\r\n\r\n") catch return;
 }
+
 fn file_return(connection: net.Server.Connection, input: []const u8, allocator: std.mem.Allocator, dirname: []const u8) !void {
     const stdout = std.io.getStdOut().writer();
 
@@ -195,4 +203,15 @@ fn file_return(connection: net.Server.Connection, input: []const u8, allocator: 
 
         try connection.stream.writeAll("HTTP/1.1 404 Not Found\r\n\r\n");
     }
+}
+
+fn file_create(connection: net.Server.Connection, file_name: []const u8, allocator: std.mem.Allocator, dirname: []const u8, file_content: []const u8) !void {
+    const fileName = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dirname, file_name });
+
+    const file = try std.fs.cwd().createFile(fileName, .{ .read = true });
+    defer file.close();
+
+    try file.writeAll(file_content);
+
+    try connection.stream.writeAll("HTTP/1.1 201 Created\r\n\r\n");
 }
