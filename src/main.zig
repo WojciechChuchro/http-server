@@ -66,10 +66,30 @@ fn ok_response(body: []const u8, writer: net.Stream.Writer) !void {
     try std.fmt.format(writer, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{s}", .{ body.len, body });
 }
 
+fn file_response(file: []const u8, writer: net.Stream.Writer) !void {
+    try std.fmt.format(writer, "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\n\r\n{s}", .{ file.len, file });
+}
+
+var directory_path: ?[]const u8 = null;
 pub fn main() !void {
     const stdout = std.io.getStdOut().writer();
+    const stderr = std.io.getStdErr().writer();
 
     const page_alloc = std.heap.page_allocator;
+    var args_iter = std.process.args();
+
+    while (args_iter.next()) |val| {
+        if (std.mem.eql(u8, val, "--directory")) {
+            if (args_iter.next()) |value| {
+                directory_path = value;
+            } else {
+                try stderr.print("Błąd: Flaga --directory wymaga podania wartości (ścieżki).\n", .{});
+
+                return error.MissingArgumentValue;
+            }
+        }
+    }
+
     var alloc: std.heap.ThreadSafeAllocator = .{ .child_allocator = page_alloc };
 
     try stdout.print("Logs from your program will appear here!\n", .{});
@@ -126,13 +146,16 @@ fn handleConnection(conn: net.Server.Connection, log: ?std.fs.File.Writer, alloc
         _ = route_iter.next();
 
         if (std.mem.eql(u8, route_iter.peek().?, "echo")) {
-            _ = route_iter.next(); // skip what we peeked
+            _ = route_iter.next();
 
             ok_response(route_iter.next().?, conn.stream.writer()) catch return handleError(conn);
         } else if (std.mem.eql(u8, route_iter.peek().?, "user-agent")) {
-            _ = route_iter.next(); // skip what we peeked
+            _ = route_iter.next();
 
             ok_response(req.get_user_agent().?, conn.stream.writer()) catch return handleError(conn);
+        } else if (std.mem.eql(u8, route_iter.peek().?, "files")) {
+            _ = route_iter.next();
+            file_return(conn, route_iter.next().?, alloc, directory_path.?) catch return handleError(conn);
         } else {
             conn.stream.writeAll("HTTP/1.1 404 Not Found\r\n\r\n") catch return handleError(conn);
         }
@@ -145,4 +168,31 @@ fn handleConnection(conn: net.Server.Connection, log: ?std.fs.File.Writer, alloc
 
 fn handleError(connection: net.Server.Connection) void {
     connection.stream.writeAll("HTTP/1.1 500 Internal Server Error\r\n\r\n") catch return;
+}
+fn file_return(connection: net.Server.Connection, input: []const u8, allocator: std.mem.Allocator, dirname: []const u8) !void {
+    const stdout = std.io.getStdOut().writer();
+
+    const fileName = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dirname, input });
+
+    const file = std.fs.cwd().openFile(fileName, .{});
+
+    if (file) |value| {
+        const file_size = try value.getEndPos();
+
+        const buffer = try allocator.alloc(u8, file_size);
+
+        defer allocator.free(buffer);
+
+        const bytes = try value.read(buffer);
+
+        if (bytes != file_size) @panic("Wrong file size");
+
+        const response = try std.fmt.allocPrint(allocator, "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {d}\r\n\r\n{s}", .{ file_size, buffer });
+
+        try connection.stream.writeAll(response);
+    } else |err| {
+        try stdout.print("{any}\n", .{err});
+
+        try connection.stream.writeAll("HTTP/1.1 404 Not Found\r\n\r\n");
+    }
 }
